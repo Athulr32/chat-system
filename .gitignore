@@ -35,5 +35,5 @@ yarn-error.log*
 next-env.d.ts
 
 #chat-server
-/chat-server/target
-/chat-server/.env
+/server/target
+/server/.env
