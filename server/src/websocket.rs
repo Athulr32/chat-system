@@ -88,7 +88,7 @@ async fn handle_socket(
                     //User authentication to Web Socket
                     if !auth {
                         let foo: Result<SocketAuth, serde_json::Error> = serde_json::from_str(&msg);
-
+                        println!("{:?}",msg);
                         if let Ok(auth_details) = foo {
                             //Check if details are correct
                             //If yes Add to authenticated pool
@@ -120,6 +120,8 @@ async fn handle_socket(
                                     .to_string(),
                                 )
                                 .unwrap();
+
+                            continue;
                             } else {
                                 tx.send(
                                     r#"{
@@ -144,6 +146,8 @@ async fn handle_socket(
                                 .to_string(),
                             )
                             .unwrap();
+
+                            continue;
                         }
                     } else {
                         //User message
@@ -209,7 +213,7 @@ async fn handle_socket(
                                         .await;
 
                                         let data = json!({
-                                            "message_type":"status",
+                                            "type":"status",
                                             "uid":uid,
                                             "message_sent":true,
                                             "status":"user offline"
@@ -221,7 +225,7 @@ async fn handle_socket(
 
                                         //If sending message to reciever is successful
                                         let data = json!({
-                                            "message_type":"status",
+                                            "type":"status",
                                             "uid":uid,
                                             "message_sent":true,
                                             "status":"user online"
@@ -239,7 +243,7 @@ async fn handle_socket(
                                             .await.unwrap();
 
                                     let data = json!({
-                                        "message_type":"status",
+                                        "type":"status",
                                         "uid":uid,
                                         "message_sent":true,
                                         "status":"user offline"
