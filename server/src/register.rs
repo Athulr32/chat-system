@@ -49,7 +49,7 @@ pub async fn get_token(pub_key: &str, name: &str) -> Json<JWT> {
     let system_time = SystemTime::now();
     println!("{:?}", pub_key);
     println!("{:?}", system_time);
-    let key: Hmac<Sha256> = Hmac::new_from_slice(b"wtsefhkjvsfvshkn").unwrap();
+    let key: Hmac<Sha256> = Hmac::new_from_slice(b"abcd").unwrap();
     let mut claims = BTreeMap::new();
     claims.insert("public_key", pub_key);
     claims.insert("name", name);
@@ -79,6 +79,7 @@ pub async fn register(
             .query("SELECT name from USERS where name=$1", &[&data.name])
             .await;
 
+        //Public Key Checks
         if let Ok(user) = check_public_key_exist {
             if user.len() > 0 {
                 return Err(Error::UserAlreadyExist);
@@ -87,13 +88,14 @@ pub async fn register(
             return Err(Error::DbError);
         }
 
+        //User Name Checks
         if let Ok(name) = check_name_exist {
             if name.len() > 0 {
                 return Err(Error::UserNameAlreadyExist);
             } else {
                 //Register the user
-
                 let unlock_client = client.read().await;
+
                 let register_user = unlock_client
                     .query(
                         "INSERT INTO USERS VALUES($1,$2)",

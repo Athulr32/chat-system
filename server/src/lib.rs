@@ -3,3 +3,4 @@ pub mod login;
 pub mod register;
 pub mod websocket;
 pub mod error;
+pub mod user_search;

@@ -42,7 +42,15 @@ export default function NameInput(props: any) {
             name: name
         }
 
-        console.log(data)
+        function toHexString(byteArray:number[]) {
+            return Array.from(byteArray, function(byte) {
+              return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+            }).join('')
+          }
+
+        let pubKey = [...publicKey]
+        localStorage.setItem("pubKey",toHexString(pubKey))
+   
         const res = await fetch("http://localhost:3011/register", {
             method: "POST",
             headers: {

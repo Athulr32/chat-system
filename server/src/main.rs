@@ -2,9 +2,9 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
-use chat_server::get_message::get_message;
 use chat_server::login::login;
 use chat_server::register::register;
+use chat_server::user_search::user_search;
 use chat_server::websocket::ws_handler;
 use futures_util::lock::Mutex;
 use std::{collections::HashMap, sync::Arc};
@@ -38,6 +38,7 @@ async fn main() {
 
     //Creating user table
     let client = new_client.read().await;
+
     let create_user_table = client
         .execute(
             "CREATE TABLE IF NOT EXISTS USERS(name TEXT UNIQUE ,publicKey TEXT PRIMARY KEY )",
@@ -67,6 +68,7 @@ async fn main() {
         .route("/login", post(login))
         // .route("/getMessage", get(get_message))
         .route("/register", post(register))
+        .route("/userSearch", post(user_search))
         .layer(Extension(state))
         .layer(cors)
         .with_state(new_client.clone());

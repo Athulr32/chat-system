@@ -10,7 +10,8 @@ pub enum Error {
     SomethingElseWentWrong,
     DbError,
     UserNameAlreadyExist,
-    UserAlreadyExist
+    UserAlreadyExist,
+    UserNotAvailable
 }
 
 impl IntoResponse for Error {
@@ -54,6 +55,12 @@ impl IntoResponse for Error {
                 StatusCode::FORBIDDEN,
                 r#"{
                     "message":"User Already Exist.Try with different Key."
+                }"#
+            ).into_response(),
+            Error::UserNotAvailable=>(
+                StatusCode::FORBIDDEN,
+                r#"{
+                    "message":"User not available."
                 }"#
             ).into_response()
 

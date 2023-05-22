@@ -26,24 +26,35 @@ use std::collections::BTreeMap;
 
 //User message
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct UserMessage {
+pub struct ClientMessage {
     uid: String,
     message_type: String,
     cipher: String,
     public_key: String,
 }
 
-pub struct ReceiverMessage {}
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct RecieverMessage {
+    uid: String,
+    message_type: String,
+    cipher: String,
+    public_key: String,
+    message_id: String,
+    name: String,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct MessageStatus {
+    message_type: String,
+    uid: String,
+    status: String,
+    message_sent: String,
+}
+
 #[derive(Deserialize, Debug, Serialize)]
 struct SocketAuth {
     token: String,
 }
-
-// #[derive(Serialize, Deserialize, Clone, Default, Debug)]
-// pub struct ReceiverMessage {
-//     message_type:
-//     cipher: String,
-// }
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -81,14 +92,14 @@ async fn handle_socket(
     tokio::spawn(async move {
         let mut auth = false;
         let mut pk = String::from("");
-
+        let mut name = String::from("");
         while let Some(Ok(socket_message)) = receiver.next().await {
             match socket_message {
                 Message::Text(msg) => {
                     //User authentication to Web Socket
                     if !auth {
                         let foo: Result<SocketAuth, serde_json::Error> = serde_json::from_str(&msg);
-                        println!("{:?}",msg);
+                        println!("{:?}", msg);
                         if let Ok(auth_details) = foo {
                             //Check if details are correct
                             //If yes Add to authenticated pool
@@ -96,14 +107,31 @@ async fn handle_socket(
 
                             let token = auth_details.token.to_string();
 
-                            let key: Hmac<Sha256> =
-                                Hmac::new_from_slice(b"wtsefhkjvsfvshkn").unwrap();
+                            let key: Hmac<Sha256> = Hmac::new_from_slice(b"abcd").unwrap();
 
                             let claims: Result<BTreeMap<String, String>, jwt::Error> =
                                 token.verify_with_key(&key);
 
                             if let Ok(claim) = claims {
                                 pk = claim["public_key"].to_string();
+
+                                let unlock_client = client.read().await;
+
+                                //get the name of user
+                                let username = unlock_client
+                                    .query("SELECT name from USERS where publicKey=$1", &[&pk])
+                                    .await
+                                    .unwrap();
+
+                                if username.len() > 0 {
+                                    let user_name: &str = username[0].get(0);
+                                    println!("{}", user_name);
+
+                                    name = user_name.to_string();
+                                } else {
+                                    break;
+                                }
+
                                 let mut muttex = state.lock().await;
                                 muttex.insert(pk.to_string(), tx.clone());
 
@@ -113,7 +141,7 @@ async fn handle_socket(
                                 // will be done at last
                                 tx.send(
                                     r#"{
-                                        "type":"authentication",
+                                        "message_type":"authentication",
                                         "status":"true",
                                         "message":"user authenticated"
                                 }"#
@@ -121,11 +149,11 @@ async fn handle_socket(
                                 )
                                 .unwrap();
 
-                            continue;
+                                continue;
                             } else {
                                 tx.send(
                                     r#"{
-                                        "type":"authentication",
+                                        "message_type":"authentication",
                                         "status":"false",
                                         "message":"invalid key"
                                     }"#
@@ -151,11 +179,12 @@ async fn handle_socket(
                         }
                     } else {
                         //User message
-                        let get_msg: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&msg);
+                        let get_msg: Result<serde_json::Value, serde_json::Error> =
+                            serde_json::from_str(&msg);
 
-                        if let Err(_) = get_msg{
-                              //Client sent invalid format
-                              tx.send(
+                        if let Err(_) = get_msg {
+                            //Client sent invalid format
+                            tx.send(
                                 r#"{
                                     "type":"message_format",
                                     "status":"false",
@@ -168,18 +197,50 @@ async fn handle_socket(
                             continue;
                         }
 
-                        let get_msg: serde_json::Value= serde_json::from_str(&msg).unwrap();
+                        let get_msg: serde_json::Value = serde_json::from_str(&msg).unwrap();
+
+                        let message_type = get_msg.get("message_type");
+
+                        if message_type.is_none() {
+                            tx.send(
+                                r#"{
+                                    "type":"message_format",
+                                    "status":"false",
+                                    "message":"send valid json"
+                                 }"#
+                                .to_string(),
+                            )
+                            .unwrap();
+
+                            continue;
+                        }
+
+                        let message_type = get_msg.get("message_type").unwrap().as_str();
+
+                        if message_type.is_none() {
+                            tx.send(
+                                r#"{
+                                    "type":"message_format",
+                                    "status":"false",
+                                    "message":"send valid json"
+                                 }"#
+                                .to_string(),
+                            )
+                            .unwrap();
+
+                            continue;
+                        }
+
 
                         let message_type = get_msg.get("message_type").unwrap().as_str().unwrap();
-
-                        println!("{}", message_type);
-
                         match message_type {
                             "private_message" => {
-                                let user_message: UserMessage = serde_json::from_str(&msg).unwrap();
+                                let user_message: ClientMessage =
+                                    serde_json::from_str(&msg).unwrap();
 
                                 //Reciever public key
                                 let rec_pubkey = user_message.public_key.clone();
+
                                 let uid = user_message.uid.clone();
 
                                 let unlock_state = state.lock().await;
@@ -192,16 +253,18 @@ async fn handle_socket(
                                     //Send message to user
 
                                     let send_message = tr.send(
-                                        serde_json::to_string(&UserMessage {
+                                        serde_json::to_string(&RecieverMessage {
                                             cipher: user_message.cipher.clone(),
                                             message_type: user_message.message_type.clone(),
                                             public_key: pk.clone(),
-                                            uid: "Id".to_string(),
+                                            uid: user_message.uid.clone(),
+                                            message_id: "fd".to_string(),
+                                            name: name.to_string(),
                                         })
                                         .unwrap(),
                                     );
 
-                                    if let Err(e) = send_message {
+                                    if send_message.is_err() {
                                         //If sending messages to reciever failed
                                         //Add to database
                                         let insert_msg = add_message_to_database(
@@ -212,45 +275,47 @@ async fn handle_socket(
                                         )
                                         .await;
 
-                                        let data = json!({
-                                            "type":"status",
-                                            "uid":uid,
-                                            "message_sent":true,
-                                            "status":"user offline"
-                                        })
-                                        .to_string();
-
-                                        let _ = tx.send(data);
+                                        let _ = tx.send(
+                                            serde_json::to_string(&MessageStatus {
+                                                message_type: "status".to_string(),
+                                                uid: uid,
+                                                message_sent: "true".to_string(),
+                                                status: "user offline".to_string(),
+                                            })
+                                            .unwrap(),
+                                        );
                                     } else {
-
                                         //If sending message to reciever is successful
-                                        let data = json!({
-                                            "type":"status",
-                                            "uid":uid,
-                                            "message_sent":true,
-                                            "status":"user online"
-                                        })
-                                        .to_string();
 
-                                        tx.send(data).unwrap();
+                                        tx.send(
+                                            serde_json::to_string(&MessageStatus {
+                                                message_type: "status".to_string(),
+                                                uid: uid,
+                                                message_sent: "true".to_string(),
+                                                status: "user online".to_string(),
+                                            })
+                                            .unwrap(),
+                                        )
+                                        .unwrap();
                                     }
                                 } else {
-
                                     //If user is offline
                                     //Add to database
                                     let insert_msg =
                                         add_message_to_database(&client, &pk, &user_message, &uid)
-                                            .await.unwrap();
+                                            .await
+                                            .unwrap();
 
-                                    let data = json!({
-                                        "type":"status",
-                                        "uid":uid,
-                                        "message_sent":true,
-                                        "status":"user offline"
-                                    })
-                                    .to_string();
-
-                                    tx.send(data).unwrap();
+                                    tx.send(
+                                        serde_json::to_string(&MessageStatus {
+                                            message_type: "status".to_string(),
+                                            uid: uid,
+                                            message_sent: "true".to_string(),
+                                            status: "user offline".to_string(),
+                                        })
+                                        .unwrap(),
+                                    )
+                                    .unwrap();
                                 }
                             }
                             _ => {}
@@ -283,7 +348,7 @@ async fn handle_socket(
 pub async fn add_message_to_database(
     client: &Arc<RwLock<Client>>,
     pk: &str,
-    user_message: &UserMessage,
+    user_message: &ClientMessage,
     uid: &str,
 ) -> Result<u64, Error> {
     let unlock_client = client.read().await;
