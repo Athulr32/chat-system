@@ -52,8 +52,8 @@ export default function NameInput(props: any) {
         
         setCookie("pubKey", toHexString(pubKey))
         setCookie("privKey", toHexString([...privKeyBytes]))
-
-        const res = await fetch("http://localhost:3011/register", {
+        console.log(process.env.NEXT_PUBLIC_SERVER_URL)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -2,10 +2,11 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
-use chat_server::login::login;
-use chat_server::register::register;
-use chat_server::user_search::user_search;
-use chat_server::websocket::ws_handler;
+use dotenvy::dotenv;
+use encryptedapp::login::login;
+use encryptedapp::register::register;
+use encryptedapp::user_search::user_search;
+use encryptedapp::websocket::ws_handler;
 use futures_util::lock::Mutex;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
@@ -13,8 +14,11 @@ use tokio::sync::RwLock;
 use tokio_postgres::{ NoTls};
 use tower_http::cors::{Any, CorsLayer};
 
-#[tokio::main]
-async fn main() {
+#[shuttle_runtime::main]
+async fn axum()->shuttle_axum::ShuttleAxum {
+
+    dotenv().ok();
+  //  let postgres = dotenvy::var("DATABASE_URL").expect("No database URL was set!");
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_headers(Any)
@@ -24,7 +28,7 @@ async fn main() {
         Arc::new(Mutex::new(HashMap::new()));
 
     let (client, connection) =
-        tokio_postgres::connect("host=localhost user=postgres dbname=chatApp", NoTls)
+        tokio_postgres::connect("postgres://swpgvslj:a3SjjSC6xL_kAHPTizMFwc16r17joewT@mouse.db.elephantsql.com/swpgvslj", NoTls)
             .await
             .unwrap();
 
@@ -73,8 +77,9 @@ async fn main() {
         .layer(cors)
         .with_state(new_client.clone());
 
-    axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    // axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
+    //     .serve(app.into_make_service())
+    //     .await
+    //     .unwrap();
+    Ok(app.into())
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { StoredMessageType } from "./ChatHome"
+import { AllChatsType, StoredMessageType } from "./ChatHome"
 import { encrypt, decrypt, PrivateKey } from 'eciesjs'
 import connectToDB from '@/lib/db';
 type Chat = {
@@ -7,7 +7,8 @@ type Chat = {
     name: string,
     chats: StoredMessageType[],
     sendMessageWebSocket: Function,
-    setSelected: Function
+    setSelected: Function,
+    setFullChat: Function
 }
 
 
@@ -19,7 +20,7 @@ type ClientMessage = {
 
 }
 
-export default function SingleChat({ publicKey, name, chats, sendMessageWebSocket, setSelected }: Chat) {
+export default function SingleChat({ publicKey, name, chats, sendMessageWebSocket, setSelected, setFullChat }: Chat) {
 
     const [inputMessage, setInputMessage] = useState<string>("")
 
@@ -63,8 +64,28 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
                 })
 
             }).then(e => {
-                console.log(e)
+
                 sendMessageWebSocket(JSON.stringify(message))
+
+
+
+                db.allDocs({ include_docs: true }).then(e => {
+                    let docs = e.rows;
+                    let allDocs: AllChatsType[] = docs.map((doc) => {
+                        return {
+                            id: doc.id,
+                            messages: doc.doc.message.at(-1),
+                            name: doc.doc.name
+                        }
+                    })
+
+                    setFullChat(allDocs);
+
+
+                }).catch(e => {
+
+                })
+
             })
                 .catch(e => {
                     console.log(e)
@@ -81,7 +102,7 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
                 })
 
 
-                setInputMessage("")
+            // setInputMessage("")
         }
 
 
@@ -97,7 +118,7 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
 
     return (
         <div className="px-10 py-10 overflow-y-scroll overflow-x-hidden break-all">
- 
+
             <div className="fixed left-0 p-4 bottom-0 w-full flex">
                 <input value={inputMessage} type="text" className="w-9/12 text-black" onChange={e => {
                     setInputMessage(e.currentTarget.value)

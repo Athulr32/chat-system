@@ -14,7 +14,7 @@ function SelectContact(props: any) {
             let token: string = getCookie("token") as string;
 
 
-            const res = await fetch("http://localhost:3011/userSearch", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/userSearch`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

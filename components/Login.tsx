@@ -50,7 +50,7 @@ export default function Login() {
         }
 
         console.log(data)
-        const res = await fetch("http://localhost:3011/login", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -66,9 +66,9 @@ export default function Login() {
         if (res.status == 401) {
 
             setNameNeeded(true);
-            setCookie("pubKey",toHexString([...publicKey]))
-            setCookie("privKey",toHexString([...privKeyBytes]));
-            setCookie("token",response.token);
+            setCookie("pubKey", toHexString([...publicKey]))
+            setCookie("privKey", toHexString([...privKeyBytes]));
+            setCookie("token", response.token);
         }
 
 
