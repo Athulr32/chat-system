@@ -8,13 +8,13 @@ import NameInput from "./NameInput";
 export default function Login() {
 
 
-    const [mnemonic,setMenomonic] = useState<string>("");
-    const [nameNeeded,setNameNeeded] = useState<boolean>(false)
+    const [mnemonic, setMenomonic] = useState<string>("");
+    const [nameNeeded, setNameNeeded] = useState<boolean>(false)
 
-    async function loginHandler(){
+    async function loginHandler() {
 
-        if(mnemonic.split(" ").length <12){
-            return ;
+        if (mnemonic.split(" ").length < 12) {
+            return;
         }
 
         const seed = mnemonicToSeedSync(mnemonic)
@@ -32,6 +32,11 @@ export default function Login() {
         // convert ArrayBuffer to Uint8Array
         const hashArray = new Uint8Array(hashBuffer);
 
+        function toHexString(byteArray: number[]) {
+            return Array.from(byteArray, function (byte) {
+                return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+            }).join('')
+        }
 
         //ECDSA
         let sign = ecdsaSign(hashArray, privKeyBytes)
@@ -41,7 +46,7 @@ export default function Login() {
             signature: [...sign.signature],
             message: "Hello",
             pub_key: [...publicKey],
-         
+
         }
 
         console.log(data)
@@ -58,10 +63,12 @@ export default function Login() {
         console.log(res)
         console.log(response)
 
-        if(res.status == 401){
+        if (res.status == 401) {
 
             setNameNeeded(true);
-
+            setCookie("pubKey",toHexString([...publicKey]))
+            setCookie("privKey",toHexString([...privKeyBytes]));
+            setCookie("token",response.token);
         }
 
 
@@ -69,24 +76,24 @@ export default function Login() {
 
     return (
         <div>
-           {!nameNeeded && <div className="p-10 text-center pt-40">
+            {!nameNeeded && <div className="p-10 text-center pt-40">
 
-                    <div className="bg-gray-600 p-8 rounded mb-10">
-                        Enter Your Secret Phrase
-                    </div>
+                <div className="bg-gray-600 p-8 rounded mb-10">
+                    Enter Your Secret Phrase
+                </div>
 
-                    <div className="bg-gray-600 p-2 rounded mb-10">
+                <div className="bg-gray-600 p-2 rounded mb-10">
 
-                        <textarea onChange={(e)=>{
-                            setMenomonic(e.currentTarget.value)
-                            console.log(mnemonic)
-                        }}  className="bg-gray-600 h-40 w-full resize-none active:outline-transparent focus:outline-0" />
+                    <textarea onChange={(e) => {
+                        setMenomonic(e.currentTarget.value)
+                        console.log(mnemonic)
+                    }} className="bg-gray-600 h-40 w-full resize-none active:outline-transparent focus:outline-0" />
 
-                    </div>
+                </div>
 
-                    <div className="">
-                        <button onClick={loginHandler} className="bg-blue-700 p-4 px-1 rounded w-54">Import</button>
-                    </div>
+                <div className="">
+                    <button onClick={loginHandler} className="bg-blue-700 p-4 px-1 rounded w-54">Import</button>
+                </div>
 
             </div>}
 

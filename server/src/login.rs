@@ -1,28 +1,23 @@
 use crate::error::Error;
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use hmac::{Hmac, Mac};
 use jwt::SignWithKey;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeMap,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
-    collections::BTreeMap
 };
 use tokio::sync::RwLock;
 use tokio_postgres::Client;
-
 
 //JWT
 #[derive(Serialize)]
 pub struct JWT {
     token: String,
 }
-
 
 //User login Details
 #[derive(Serialize, Deserialize)]
@@ -32,7 +27,6 @@ pub struct LoginData {
     message: String,
     pub_key: Vec<u8>,
 }
-
 
 impl LoginData {
     fn check_digital_signature(&self) -> bool {
@@ -46,14 +40,11 @@ impl LoginData {
         let signature = Signature::from_compact(&self.signature[..]).unwrap();
         let public_key = PublicKey::from_slice(&self.pub_key).unwrap();
 
-        let res = secp256k1
+        secp256k1
             .verify_ecdsa(&message, &signature, &public_key)
-            .is_ok();
-
-        res
+            .is_ok()
     }
 }
-
 
 //To generate JWT TOKEN
 pub async fn get_token(pub_key: &str, name: &str) -> Json<JWT> {
@@ -68,8 +59,6 @@ pub async fn get_token(pub_key: &str, name: &str) -> Json<JWT> {
 
     Json(JWT { token: token_str })
 }
-
-
 
 #[axum_macros::debug_handler]
 //User login handler
@@ -106,18 +95,15 @@ pub async fn login(
 
         match check_user_exist {
             Ok(user) => {
-               
-                if user.len() > 0 {
+                if !user.is_empty() {
                     let user_name: &str = user[0].get(0);
                     Ok(get_token(&hex::encode(&data.pub_key), user_name).await)
                 } else {
                     println!("User not exist Please Sign In First");
-                    return Err(Error::AuthenticationError);
+                     Err(Error::AuthenticationError)
                 }
             }
-            Err(_) => {
-                return Err(Error::SomethingElseWentWrong);
-            }
+            Err(_) => Err(Error::SomethingElseWentWrong),
         }
     } else {
         println!("Incorrect");

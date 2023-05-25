@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { publicKeyCreate, ecdsaSign } from "secp256k1";
 import { setCookie } from "cookies-next";
 
-import {useRouter} from "next/navigation"
+import { useRouter } from "next/navigation"
 
 export default function NameInput(props: any) {
 
@@ -13,7 +13,7 @@ export default function NameInput(props: any) {
     const [errorFlag, setErrorFlag] = useState(false);
     const [error, setError] = useState("")
 
-    
+
     async function userRegistration() {
         const seed = mnemonicToSeedSync(props.mnemonic)
 
@@ -42,15 +42,17 @@ export default function NameInput(props: any) {
             name: name
         }
 
-        function toHexString(byteArray:number[]) {
-            return Array.from(byteArray, function(byte) {
-              return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+        function toHexString(byteArray: number[]) {
+            return Array.from(byteArray, function (byte) {
+                return ('0' + (byte & 0xFF).toString(16)).slice(-2);
             }).join('')
-          }
+        }
 
         let pubKey = [...publicKey]
-        localStorage.setItem("pubKey",toHexString(pubKey))
-   
+        
+        setCookie("pubKey", toHexString(pubKey))
+        setCookie("privKey", toHexString([...privKeyBytes]))
+
         const res = await fetch("http://localhost:3011/register", {
             method: "POST",
             headers: {
@@ -72,6 +74,7 @@ export default function NameInput(props: any) {
             setErrorFlag(true);
             setError("Successfull");
             setCookie("token", response.token);
+            setCookie("name", name);
             router.push("/chat")
         }
         else {

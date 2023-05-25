@@ -31,7 +31,8 @@ function SelectContact(props: any) {
             if (pubKey?.message) {
                 return;
             }
-            props.selectContact(name, pubKey)
+            props.selectContact(name, pubKey);
+            props.setContactSelect(false);
         }
         catch (e) {
             console.log("No user");
@@ -42,14 +43,17 @@ function SelectContact(props: any) {
 
 
     return (
-        <div className="absolute top-20">
-            <div className="px-20">
+        <div className="absolute top-20 " style={{ backgroundColor:"black",height:"80%",width:"100%" }}>
+            <div className="pl-10 pt-5" onClick={()=>{
+                  props.setContactSelect(false);
+            }}>Back</div>
+            <div className="px-20 pt-20">
                 <input onChange={(e) => {
                     setName(e.currentTarget.value)
-                }} type="text" placeholder="Enter Name or public key" className="border-black border-4" />
+                }} type="text" placeholder="Enter Name or public key" className="border-black border-4 px-5 py-2  text-black" />
             </div>
-            <div className="text-center">
-                <button onClick={searchHandler}>submit</button>
+            <div className="text-center pt-10 ">
+                <button className="bg-purple-800 p-2 rounded" onClick={searchHandler}>submit</button>
             </div>
         </div>
     )

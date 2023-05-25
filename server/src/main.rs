@@ -10,7 +10,7 @@ use futures_util::lock::Mutex;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tokio::sync::RwLock;
-use tokio_postgres::{Error, NoTls};
+use tokio_postgres::{ NoTls};
 use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
@@ -39,7 +39,7 @@ async fn main() {
     //Creating user table
     let client = new_client.read().await;
 
-    let create_user_table = client
+    let _create_user_table = client
         .execute(
             "CREATE TABLE IF NOT EXISTS USERS(name TEXT UNIQUE ,publicKey TEXT PRIMARY KEY )",
             &[],
@@ -48,7 +48,7 @@ async fn main() {
         .unwrap();
 
     //Creating Message Table
-    let create_message_table = client
+    let _create_message_table = client
         .execute(
             "CREATE TABLE IF NOT EXISTS MESSAGES(messageFrom TEXT,messageTo TEXT,seen TEXT,uid TEXT,timestamp TEXT,FOREIGN KEY(messageFrom) REFERENCES USERS(publicKey))",
             &[],
@@ -56,7 +56,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let insert = client
+    let _insert = client
         .query("SELECT * FROM MESSAGES WHERE messageTo=$1", &[&"key2"])
         .await
         .unwrap();

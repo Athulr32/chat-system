@@ -4,3 +4,4 @@ pub mod register;
 pub mod websocket;
 pub mod error;
 pub mod user_search;
+pub mod types;

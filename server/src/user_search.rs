@@ -1,13 +1,12 @@
 use axum::{extract::State, http::HeaderMap, Json};
-use jwt::{Header, VerifyWithKey};
+use jwt::{VerifyWithKey};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap},
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{ RwLock};
 use tokio_postgres::Client;
 
 use hmac::{Hmac, Mac};
@@ -30,13 +29,14 @@ impl UserSearchParam {
                     let claims: Result<BTreeMap<String, String>, jwt::Error> =
                         token.verify_with_key(&key);
 
-                    if let Ok(claim) = claims {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    // if let Ok(_claim) = claims {
+                    //     true
+                    // } else {
+                    //     false
+                    // }
+                    matches!(claims,Ok(_claim))
                 }
-                Err(_) => return false,
+                Err(_) => false,
             }
         } else {
             false
@@ -62,12 +62,12 @@ pub async fn user_search(
                 .await;
 
             let user = check_name_exist.unwrap();
-            if user.len() > 0 {
+            if !user.is_empty() {
                 let name: &str = user[0].get(1);
                 println!("{}", name);
-                return Ok(Json(name.to_string()));
+                Ok(Json(name.to_string()))
             } else {
-                return Err(Error::UserNotAvailable);
+                Err(Error::UserNotAvailable)
             }
         } else {
             let check_name_exist = unlock_client
@@ -78,12 +78,12 @@ pub async fn user_search(
                 .await;
 
             let user = check_name_exist.unwrap();
-            if user.len() > 0 {
+            if !user.is_empty() {
                 let name: &str = user[0].get(0);
                 println!("{}", name);
-                return Ok(Json(name.to_string()));
+                Ok(Json(name.to_string()))
             } else {
-                return Err(Error::UserNotAvailable);
+                Err(Error::UserNotAvailable)
             }
         }
     } else {

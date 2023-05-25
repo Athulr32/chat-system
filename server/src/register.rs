@@ -37,11 +37,9 @@ impl RegisterData {
         let signature = Signature::from_compact(&self.signature[..]).unwrap();
         let public_key = PublicKey::from_slice(&self.pub_key).unwrap();
 
-        let res = secp256k1
+        secp256k1
             .verify_ecdsa(&message, &signature, &public_key)
-            .is_ok();
-
-        res
+            .is_ok()
     }
 }
 
@@ -81,16 +79,16 @@ pub async fn register(
 
         //Public Key Checks
         if let Ok(user) = check_public_key_exist {
-            if user.len() > 0 {
+            if !user.is_empty() {
                 return Err(Error::UserAlreadyExist);
             }
-        } else if let Err(_) = check_public_key_exist {
+        } else if check_name_exist.is_err() {
             return Err(Error::DbError);
         }
 
         //User Name Checks
         if let Ok(name) = check_name_exist {
-            if name.len() > 0 {
+            if !name.is_empty() {
                 return Err(Error::UserNameAlreadyExist);
             } else {
                 //Register the user
@@ -113,7 +111,7 @@ pub async fn register(
                     }
                 }
             }
-        } else if let Err(_) = check_name_exist {
+        } else if check_name_exist.is_err() {
             return Err(Error::DbError);
         }
 
