@@ -11,14 +11,13 @@ use futures_util::lock::Mutex;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tokio::sync::RwLock;
-use tokio_postgres::{ NoTls};
+use tokio_postgres::NoTls;
 use tower_http::cors::{Any, CorsLayer};
 
 #[shuttle_runtime::main]
-async fn axum()->shuttle_axum::ShuttleAxum {
-
+async fn axum() -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
-  //  let postgres = dotenvy::var("DATABASE_URL").expect("No database URL was set!");
+    let postgres_env = std::env::var("DATABASE_URL").expect("DATABASE URL NOT SET");
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_headers(Any)
@@ -27,10 +26,12 @@ async fn axum()->shuttle_axum::ShuttleAxum {
     let state: Arc<Mutex<HashMap<String, broadcast::Sender<String>>>> =
         Arc::new(Mutex::new(HashMap::new()));
 
-    let (client, connection) =
-        tokio_postgres::connect("postgres://swpgvslj:a3SjjSC6xL_kAHPTizMFwc16r17joewT@mouse.db.elephantsql.com/swpgvslj", NoTls)
-            .await
-            .unwrap();
+    let (client, connection) = tokio_postgres::connect(
+       &postgres_env,
+        NoTls,
+    )
+    .await
+    .unwrap();
 
     let new_client = Arc::new(RwLock::new(client));
 
