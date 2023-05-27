@@ -215,21 +215,31 @@ async fn handle_socket(
 
                                 //Check whether reciever is online
                                 let tr = unlock_state.get(&rec_pubkey);
+                                let time = SystemTime::now();
+                                let since_the_epoch = time
+                                    .duration_since(UNIX_EPOCH)
+                                    .expect("Time went backwards");
+                                let current_time = since_the_epoch.as_secs() * 1000
+                                    + since_the_epoch.subsec_nanos() as u64 / 1_000_000;
+
+                                println!("{}", current_time);
+                                //Construct message for the receiver also to add in DB
+                                let message_for_receiver = RecieverMessage::build(
+                                    user_message.get_uid(),
+                                    user_message.message_type.clone(),
+                                    user_message.get_cipher(),
+                                    pk.clone(),
+                                    "fd".to_string(),
+                                    name.to_string(),
+                                    current_time
+                                );
 
                                 if let Some(tr) = tr {
                                     //If user is online
                                     //Send message to user
 
                                     let send_message = tr.send(
-                                        serde_json::to_string(&RecieverMessage::build(
-                                            user_message.get_uid(),
-                                            user_message.message_type.clone(),
-                                            user_message.get_cipher(),
-                                            pk.clone(),
-                                            "fd".to_string(),
-                                            name.to_string(),
-                                        ))
-                                        .unwrap(),
+                                        serde_json::to_string(&message_for_receiver).unwrap(),
                                     );
 
                                     if send_message.is_err() {
@@ -240,12 +250,16 @@ async fn handle_socket(
                                             &pk,
                                             &user_message,
                                             &uid,
+                                            &"wait",
+                                            &current_time.to_string(),
                                         )
                                         .await;
 
                                         let _ = tx.send(
                                             serde_json::to_string(&MessageStatus::build(
+                                                
                                                 "status".to_string(),
+                                                rec_pubkey,
                                                 uid,
                                                 "user offline".to_string(),
                                                 "true".to_string(),
@@ -257,7 +271,9 @@ async fn handle_socket(
 
                                         tx.send(
                                             serde_json::to_string(&MessageStatus::build(
+
                                                 "status".to_string(),
+                                                rec_pubkey,
                                                 uid,
                                                 "user online".to_string(),
                                                 "true".to_string(),
@@ -269,14 +285,20 @@ async fn handle_socket(
                                 } else {
                                     //If user is offline
                                     //Add to database
-                                    let _insert_msg =
-                                        add_message_to_database(&client, &pk, &user_message, &uid)
-                                            .await
-                                            .unwrap();
+                                    let _insert_msg = add_message_to_database(
+                                        &client,
+                                        &pk,
+                                        &user_message,
+                                        &uid,
+                                        &"wait",
+                                        &current_time.to_string(),
+                                    )
+                                    .await;
 
                                     tx.send(
                                         serde_json::to_string(&MessageStatus::build(
                                             "status".to_string(),
+                                            rec_pubkey,
                                             uid,
                                             "user offline".to_string(),
                                             "true".to_string(),
@@ -317,18 +339,24 @@ pub async fn add_message_to_database(
     client: &Arc<RwLock<Client>>,
     pk: &str,
     user_message: &ClientMessage,
-    uid: &str,
+    message_id: &str,
+    status: &str,
+    time: &str,
 ) -> Result<u64, Error> {
     let unlock_client = client.read().await;
-    let time = SystemTime::now();
-    let _since_the_epoch = time
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
 
     unlock_client
         .execute(
-            "INSERT INTO MESSAGES VALUES($1,$2,$3,$4,$5)",
-            &[&pk, &user_message.get_public_key(), &"false", &uid, &"time"],
+            "INSERT INTO MESSAGES VALUES($1,$2,$3,$4,$5,$6)",
+            &[
+                &pk,
+                &user_message.get_public_key(),
+                &status,
+                &message_id,
+                &time,
+            ],
         )
         .await
 }
+
+//messageFrom TEXT,messageTo TEXT,message TEXT,status TEXT,messageId TEXT,timestamp TEXT

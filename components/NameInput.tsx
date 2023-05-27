@@ -15,6 +15,7 @@ export default function NameInput(props: any) {
 
 
     async function userRegistration() {
+        console.log("Hello")
         const seed = mnemonicToSeedSync(props.mnemonic)
 
         //Keys  
@@ -49,39 +50,45 @@ export default function NameInput(props: any) {
         }
 
         let pubKey = [...publicKey]
-        
+        console.log("Hi")
         setCookie("pubKey", toHexString(pubKey))
         setCookie("privKey", toHexString([...privKeyBytes]))
         console.log(process.env.NEXT_PUBLIC_SERVER_URL)
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/register`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify(data)
-        })
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    'Access-Control-Allow-Origin': '*'
+                },
+                body: JSON.stringify(data)
+            })
 
-        const response = await res.json();
-        console.log(res)
-        if (res.status == 403) {
+            const response = await res.json();
+            console.log(res)
+            if (res.status == 403) {
 
-            setErrorFlag(true);
-            setError(response.message)
+                setErrorFlag(true);
+                setError(response.message)
+
+            }
+            else if (res.status == 200) {
+                setErrorFlag(true);
+                setError("Successfull");
+                setCookie("token", response.token);
+                setCookie("name", name);
+                router.push("/chat")
+            }
+            else {
+                setErrorFlag(true);
+                setError(response.message)
+            }
 
         }
-        else if (res.status == 200) {
-            setErrorFlag(true);
-            setError("Successfull");
-            setCookie("token", response.token);
-            setCookie("name", name);
-            router.push("/chat")
-        }
-        else {
-            setErrorFlag(true);
-            setError(response.message)
-        }
+        catch (e) {
+            console.log(e)
 
+        }
 
 
 

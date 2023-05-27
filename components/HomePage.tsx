@@ -1,13 +1,14 @@
 
 import { useState } from "react";
 import BottomBar from "./BottomBar"
-import type { AllChatsType } from "./ChatHome"
+import type { DocumentSchema } from "./ChatHome"
 import ChatList from "./ChatList"
 import Profile from "./Profile"
+import { useAllDocs } from "use-pouchdb";
 
-export default function HomePage({ allChats, setContactSelect, setSingleChat }: { allChats: AllChatsType[], setContactSelect: Function, setSingleChat: Function }) {
+export default function HomePage({ setContactSelect, setSingleChat }: { setContactSelect: Function, setSingleChat: Function }) {
 
-
+   
     const [trackPage, setTrackPage] = useState<number>(1);
 
     function trackPageHandler(page: number) {
@@ -16,12 +17,12 @@ export default function HomePage({ allChats, setContactSelect, setSingleChat }: 
     }
 
 
-    let render = <ChatList setSingleChat={setSingleChat} allChats={allChats} setContactSelect={setContactSelect}></ChatList>
+    let render = <ChatList setSingleChat={setSingleChat} setContactSelect={setContactSelect}></ChatList>
 
     if (trackPage === 1) {
 
         {/*User Chat Home screen*/ }
-        render = <ChatList setSingleChat={setSingleChat} allChats={allChats} setContactSelect={setContactSelect}></ChatList>
+        render = <ChatList setSingleChat={setSingleChat} setContactSelect={setContactSelect}></ChatList>
 
     }
     else if (trackPage === 2) {

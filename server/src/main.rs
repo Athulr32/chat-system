@@ -13,11 +13,11 @@ use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 use tokio_postgres::NoTls;
 use tower_http::cors::{Any, CorsLayer};
-
-#[shuttle_runtime::main]
-async fn axum() -> shuttle_axum::ShuttleAxum {
+//-> shuttle_axum::ShuttleAxum 
+#[tokio::main]
+async fn main() {
     dotenv().ok();
-    let postgres_env = std::env::var("DATABASE_URL").expect("DATABASE URL NOT SET");
+    // let postgres_env = std::env::var("DATABASE_URL").expect("DATABASE URL NOT SET");
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_headers(Any)
@@ -27,7 +27,7 @@ async fn axum() -> shuttle_axum::ShuttleAxum {
         Arc::new(Mutex::new(HashMap::new()));
 
     let (client, connection) = tokio_postgres::connect(
-       &postgres_env,
+        "host=localhost user=postgres",
         NoTls,
     )
     .await
@@ -55,7 +55,7 @@ async fn axum() -> shuttle_axum::ShuttleAxum {
     //Creating Message Table
     let _create_message_table = client
         .execute(
-            "CREATE TABLE IF NOT EXISTS MESSAGES(messageFrom TEXT,messageTo TEXT,seen TEXT,uid TEXT,timestamp TEXT,FOREIGN KEY(messageFrom) REFERENCES USERS(publicKey))",
+            "CREATE TABLE IF NOT EXISTS MESSAGES(messageFrom TEXT,messageTo TEXT,message TEXT,status TEXT,messageId TEXT,timestamp TEXT,FOREIGN KEY(messageFrom) REFERENCES USERS(publicKey))",
             &[],
         )
         .await
@@ -78,9 +78,9 @@ async fn axum() -> shuttle_axum::ShuttleAxum {
         .layer(cors)
         .with_state(new_client.clone());
 
-    // axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
-    //     .serve(app.into_make_service())
-    //     .await
-    //     .unwrap();
-    Ok(app.into())
+    axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+    // Ok(app.into())
 }

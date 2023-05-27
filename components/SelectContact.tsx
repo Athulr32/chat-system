@@ -7,10 +7,11 @@ function SelectContact(props: any) {
 
     const [name, setName] = useState("")
     const [pubKey, setPubKey] = useState("")
+
     async function searchHandler() {
         try {
 
-
+       
             let token: string = getCookie("token") as string;
 
 
@@ -26,7 +27,7 @@ function SelectContact(props: any) {
                     is_name: true
                 })
             })
-
+            console.log(res)
             let pubKey = await res.json();
             if (pubKey?.message) {
                 return;

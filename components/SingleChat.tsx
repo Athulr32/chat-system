@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react"
-import { AllChatsType, StoredMessageType } from "./ChatHome"
+import { DocumentSchema, StoredMessage } from "./ChatHome"
 import { encrypt, decrypt, PrivateKey } from 'eciesjs'
 import connectToDB from '@/lib/db';
+import { useDoc } from "use-pouchdb";
 type Chat = {
     publicKey: string,
     name: string,
-    chats: StoredMessageType[],
     sendMessageWebSocket: Function,
     setSelected: Function,
-    setFullChat: Function
 }
 
 
@@ -20,9 +19,26 @@ type ClientMessage = {
 
 }
 
-export default function SingleChat({ publicKey, name, chats, sendMessageWebSocket, setSelected, setFullChat }: Chat) {
+
+type Doc = {
+    _id?: string,
+    name: string,
+    message: StoredMessage[]
+}
+
+export default function SingleChat({ publicKey, name, sendMessageWebSocket, setSelected }: Chat) {
 
     const [inputMessage, setInputMessage] = useState<string>("")
+    const { doc, loading, state, error } = useDoc(publicKey);
+
+    let db = connectToDB();
+    console.log(doc)
+    let d = db.find({ selector: { _id: publicKey }, fields: [``]}).then(e=>console.log(e))
+    //console.log(d)
+
+
+
+    let chat = doc as Doc | null;
 
 
     async function sendSocketMessage(e) {
@@ -49,7 +65,7 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
 
             db.get(publicKey).then((e) => {
 
-                let messageInDb = e.message as StoredMessageType[]
+                let messageInDb = e.message as StoredMessage[]
 
                 messageInDb.push({ cipher: inputMessage, rec: false, status: "wait" });
 
@@ -71,7 +87,7 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
 
                 db.allDocs({ include_docs: true }).then(e => {
                     let docs = e.rows;
-                    let allDocs: AllChatsType[] = docs.map((doc) => {
+                    let allDocs: DocumentSchema[] = docs.map((doc) => {
                         return {
                             id: doc.id,
                             messages: doc.doc.message.at(-1),
@@ -79,7 +95,6 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
                         }
                     })
 
-                    setFullChat(allDocs);
 
 
                 }).catch(e => {
@@ -110,14 +125,13 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
 
 
 
-    useEffect(() => {
+    if (loading) {
 
-        //Fetch all messages in this publicKey
-    }, [])
-
+        return <div>Loading</div>
+    }
 
     return (
-        <div className="px-10 py-10 overflow-y-scroll overflow-x-hidden break-all">
+        <div className="px-0 py-10 break-all">
 
             <div className="fixed left-0 p-4 bottom-0 w-full flex">
                 <input value={inputMessage} type="text" className="w-9/12 text-black" onChange={e => {
@@ -135,11 +149,11 @@ export default function SingleChat({ publicKey, name, chats, sendMessageWebSocke
             <div className="text-center border-b-2 border-indigo-50">
                 {name}
             </div>
-            <div >{
+            <div className="overflow-auto px-2 " style={{ maxHeight: "85vh" }}>{
 
-                chats.map((chat: StoredMessageType) => {
+                chat?.message.map((chat: StoredMessage, index) => {
                     return (
-                        <div className="m-2">
+                        <div className="m-2 " key={index}>
                             {chat.rec ? <div className="text-left rounded bg-blue-700 inline-block px-5 py-2">{chat.cipher}</div> : <div className="text-right"><div className="text-right bg-blue-950 inline-block px-5 py-2">{chat.cipher}</div></div>}
                         </div>
                     )

@@ -2,7 +2,7 @@
 
 export default function BottomBar({trackPageFunction}:{trackPageFunction:Function}) {
 
-    function setTrack(e){
+    function setTrack(e:any){
         console.log(e.currentTarget.id)
         trackPageFunction(Number(e.currentTarget.id))
 

@@ -32,6 +32,7 @@ pub struct RecieverMessage {
     public_key: String,
     message_id: String,
     name: String,
+    time:u64
 }
 
 impl RecieverMessage {
@@ -42,6 +43,7 @@ impl RecieverMessage {
         public_key: String,
         message_id: String,
         name: String,
+        time:u64
     ) -> Self {
         RecieverMessage {
             uid,
@@ -50,6 +52,7 @@ impl RecieverMessage {
             public_key,
             message_id,
             name,
+            time
         }
     }
 }
@@ -57,14 +60,16 @@ impl RecieverMessage {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct MessageStatus {
     message_type: String,
+    key:String,
     uid: String,
     status: String,
     message_sent: String,
 }
 
 impl MessageStatus {
-    pub fn build(message_type: String, uid: String, status: String, message_sent: String) -> Self {
+    pub fn build(message_type: String,key:String, uid: String, status: String, message_sent: String) -> Self {
         MessageStatus {
+            key,
             message_type,
             uid,
             status,

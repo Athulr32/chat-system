@@ -1,10 +1,35 @@
 
 import Image from "next/image"
-import type { AllChatsType } from "./ChatHome"
+import type { DocumentSchema } from "./ChatHome"
 import profile from "../public/profile.jpeg";
+import { useAllDocs } from "use-pouchdb";
+import connectToDB from "@/lib/db";
 
-export default function ChatList({ allChats, setContactSelect, setSingleChat }: { allChats: AllChatsType[], setContactSelect: Function, setSingleChat: Function }) {
+export default function ChatList({ setContactSelect, setSingleChat }: {setContactSelect: Function, setSingleChat: Function }) {
 
+    let { state, rows } = useAllDocs({ include_docs: true, attachments: true });
+    let db = connectToDB();
+
+    let chats: DocumentSchema[];
+
+    if (state === "done") {
+
+        chats = rows.map((row) => {
+
+            let data: DocumentSchema = {
+                id: row.doc?._id,
+                name: row.doc?.name!,
+                _rev: row.doc?._rev,
+                messages: row.doc!.message
+
+            }
+
+            return data
+
+        })
+
+
+    }
 
     return (
 
@@ -22,7 +47,9 @@ export default function ChatList({ allChats, setContactSelect, setSingleChat }: 
                 </div>
 
                 <div>
-                    {allChats.map((chat, index) => {
+                    {state==="done" && chats!.map((chat, index) => {
+
+                        console.log(chat)
                         return (
 
                             <div key={index} onClick={() => {
@@ -44,7 +71,7 @@ export default function ChatList({ allChats, setContactSelect, setSingleChat }: 
 
 
 
-function ChatItem({ chat }: { chat: AllChatsType }) {
+function ChatItem({ chat }: { chat: DocumentSchema }) {
 
 
     return (
@@ -54,7 +81,7 @@ function ChatItem({ chat }: { chat: AllChatsType }) {
                     <div className="pr-10"><Image width={100} height={100} src={profile} alt="profile"></Image></div>
                     <div className="pl-20">
                         <div>{chat.name}</div>
-                        <div className="font-thin break-normal text-sm">{chat.messages.cipher}</div>
+                        <div className="font-thin break-normal text-sm">{chat.messages?.at(-1)?.cipher}</div>
                     </div>
                     <div className="text-right w-full">
                         time

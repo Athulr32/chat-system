@@ -9,6 +9,9 @@ import connectToDB from '@/lib/db';
 import HomePage from './HomePage';
 import { decrypt } from 'eciesjs';
 import { useRouter } from 'next/router';
+import { useAllDocs, useFind } from 'use-pouchdb';
+import useEventListener from '@/hooks/useEventListener';
+
 interface check {
     message_type: String
 }
@@ -44,17 +47,17 @@ type SendMessage = {
 }
 
 
-export type StoredMessageType = {
+export type StoredMessage = {
     cipher: string,
     rec?: boolean,
     status?: string
 }
 
-export type AllChatsType = {
-    id: string,
-    name: string,
-    messages: StoredMessageType
-
+export type DocumentSchema = {
+    id?: string,
+    name?: string,
+    messages?: StoredMessage[]
+    _rev?: string
 }
 
 
@@ -62,19 +65,22 @@ function ChatHome() {
 
     let db = useMemo(() => { return connectToDB() }, []);
 
-    const [name, setName] = useState("");
-    const [pubKey, setPubKey] = useState("")
+    let d = useEventListener(db)
+
+    const [receiverDetails, setReceiverDetails] = useState({
+        name: "",
+        pubKey: ""
+    })
+
     const [selected, setSelected] = useState(false);
     const [contactSelect, setContactSelect] = useState(false);
 
-    const [allChats, setAllChats] = useState<AllChatsType[]>([{ id: "", name: "", messages: { cipher: "", rec: false, status: "" } }])
-
-    const [singleChatMessages, setSingleChatMessages] = useState<StoredMessageType[]>([{ cipher: "", rec: false, status: "" }]);
-
     const router = useRouter();
-    const [inital, setInitial] = useState(true);
+
     const token = getCookie('token');
+
     const [auth, setAuth] = useState<boolean>(false)
+
     const {
         sendMessage,
         sendJsonMessage,
@@ -82,7 +88,8 @@ function ChatHome() {
         lastJsonMessage,
         readyState,
         getWebSocket,
-    } = useWebSocket(`${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/ws`, {
+
+    } = useWebSocket(`ws://localhost:3011/ws`, {
         onOpen: (e) => {
             sendMessage(`{"token":"${token}"}`);
             console.log("Connected")
@@ -90,27 +97,10 @@ function ChatHome() {
         //Will attempt to reconnect on all close events, such as server shutting down
         shouldReconnect: (closeEvent) => true,
         onClose: () => console.log("closing"),
+        retryOnError: true,
         reconnectAttempts: 10,
     });
 
-    if (inital) {
-        db.allDocs({ include_docs: true }).then(e => {
-            let docs = e.rows;
-            let allDocs = docs.map((doc) => {
-                return {
-                    id: doc.id,
-                    messages: doc.doc.message.at(-1),
-                    name: doc.doc.name
-                }
-            })
-            console.log(allDocs)
-            setAllChats(allDocs)
-            setInitial(false);
-        }).catch(e => {
-
-        })
-
-    }
 
     const connectionStatus = {
         [ReadyState.CONNECTING]: 'Connecting',
@@ -136,7 +126,7 @@ function ChatHome() {
 
         db.get(messages.public_key, {}).then((e: any) => {
 
-            let messageInDb = e.message as StoredMessageType[]
+            let messageInDb = e.message as StoredMessage[]
 
 
             messageInDb.push({ cipher: decrypt_message.toString(), rec: true, status: "received" });
@@ -148,39 +138,6 @@ function ChatHome() {
                 name: e.name
             }, { force: true, })
 
-        }).then(e => {
-
-            //Update the state after inserting data into database
-
-            db.allDocs({ include_docs: true }).then(e => {
-                let docs = e.rows;
-                let allDocs = docs.map((doc) => {
-                    return {
-                        id: doc.id,
-                        messages: doc.doc.message.at(-1),
-                        name: doc.doc.name
-                    }
-                })
-
-                setAllChats(allDocs);
-
-                if (selected) {
-
-                    db.get(pubKey).then(doc => {
-
-                        setSingleChatMessages(doc.message)
-                    }).catch(e => {
-                        console.log(e)
-                        setSingleChatMessages([])
-                    })
-
-                }
-
-
-            }).catch(e => {
-
-            })
-
         })
             .catch(e => {
                 console.log(e)
@@ -189,37 +146,6 @@ function ChatHome() {
                     message: [{ cipher: decrypt_message.toString(), rec: true, status: "received" }],
                     name: messages.name
                 })
-                    .then(e => {
-
-                        db.allDocs({ include_docs: true }).then(e => {
-                            let docs = e.rows;
-                            let allDocs = docs.map((doc) => {
-                                return {
-                                    id: doc.id,
-                                    messages: doc.doc.message.at(-1),
-                                    name: doc.doc.name
-                                }
-                            })
-
-                            setAllChats(allDocs);
-
-                            if (selected) {
-
-                                db.get(pubKey).then(doc => {
-
-                                    setSingleChatMessages(doc.message)
-                                }).catch(e => {
-                                    console.log(e)
-                                    setSingleChatMessages([])
-                                })
-
-                            }
-
-
-                        }).catch(e => {
-
-                        })
-                    })
                     .catch(e => {
                         console.log(e)
                     })
@@ -271,29 +197,13 @@ function ChatHome() {
 
     const setSingleChat = async (name: string, pubKey: string) => {
 
-        setSingleChatMessages([])
-        try {
-
-            setName(name);
-            setPubKey(pubKey);
-            let doc = await db.get(pubKey);
-            setSingleChatMessages(doc.message)
-
-            setSelected(true)
-            setContactSelect(false)
-
-        }
-        catch (e) {
-
-            setSelected(true)
-            setContactSelect(false)
-            console.log(e)
-
-
+        if (!name || !pubKey) {
+            return;
         }
 
-
-
+        setReceiverDetails({ name, pubKey })
+        setSelected(true);
+        setContactSelect(false);
 
     }
 
@@ -310,36 +220,14 @@ function ChatHome() {
     }
 
 
-    async function setFullChat(chats: AllChatsType[]) {
-        setAllChats(chats)
 
-        if (selected) {
-
-            db.get(pubKey).then(doc => {
-
-                setSingleChatMessages(doc.message)
-            }).catch(e => {
-                console.log(e)
-                setSingleChatMessages([])
-            })
-
-        }
-
-    }
-
-
-    async function singleChatStateHandler() {
-
-
-
-    }
 
     return (
         <div>
 
-            {!selected && <HomePage setSingleChat={setSingleChat} allChats={allChats} setContactSelect={setContactSelect} ></HomePage>}
+            {!selected && <HomePage setSingleChat={setSingleChat} setContactSelect={setContactSelect} ></HomePage>}
 
-            {selected && !contactSelect && <SingleChat setFullChat={setFullChat} setSelected={selectHandler} name={name} publicKey={pubKey} chats={singleChatMessages} sendMessageWebSocket={sendMessageWebSocket} ></SingleChat>}
+            {selected && !contactSelect && <SingleChat setSelected={selectHandler} name={receiverDetails.name} publicKey={receiverDetails.pubKey} sendMessageWebSocket={sendMessageWebSocket}></SingleChat>}
 
             {contactSelect && <SelectContact setContactSelect={setContactSelect} selectContact={setSingleChat}></SelectContact>}
 
