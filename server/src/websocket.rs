@@ -231,7 +231,7 @@ async fn handle_socket(
                                     pk.clone(),
                                     "fd".to_string(),
                                     name.to_string(),
-                                    current_time
+                                    current_time.to_string()
                                 );
 
                                 if let Some(tr) = tr {
@@ -250,7 +250,7 @@ async fn handle_socket(
                                             &pk,
                                             &user_message,
                                             &uid,
-                                            &"wait",
+                                            &"sent",
                                             &current_time.to_string(),
                                         )
                                         .await;
@@ -261,7 +261,7 @@ async fn handle_socket(
                                                 "status".to_string(),
                                                 rec_pubkey,
                                                 uid,
-                                                "user offline".to_string(),
+                                                "sent".to_string(),
                                                 "true".to_string(),
                                             ))
                                             .unwrap(),
@@ -274,33 +274,45 @@ async fn handle_socket(
 
                                                 "status".to_string(),
                                                 rec_pubkey,
-                                                uid,
-                                                "user online".to_string(),
+                                                uid.clone(),
+                                                "delivered".to_string(),
                                                 "true".to_string(),
                                             ))
                                             .unwrap(),
                                         )
                                         .unwrap();
+
+
+                                        let _insert_msg = add_message_to_database(
+                                            &client,
+                                            &pk,
+                                            &user_message,
+                                            &uid,
+                                            &"delivered",
+                                            &current_time.to_string(),
+                                        )
+                                        .await;
                                     }
                                 } else {
                                     //If user is offline
                                     //Add to database
+
                                     let _insert_msg = add_message_to_database(
                                         &client,
                                         &pk,
                                         &user_message,
                                         &uid,
-                                        &"wait",
+                                        &"sent",
                                         &current_time.to_string(),
                                     )
-                                    .await;
-
+                                    .await.unwrap();
+                                    println!("{:?}",_insert_msg);
                                     tx.send(
                                         serde_json::to_string(&MessageStatus::build(
                                             "status".to_string(),
                                             rec_pubkey,
                                             uid,
-                                            "user offline".to_string(),
+                                            "sent".to_string(),
                                             "true".to_string(),
                                         ))
                                         .unwrap(),
@@ -345,12 +357,14 @@ pub async fn add_message_to_database(
 ) -> Result<u64, Error> {
     let unlock_client = client.read().await;
 
+    println!("{:?}",status);
     unlock_client
         .execute(
             "INSERT INTO MESSAGES VALUES($1,$2,$3,$4,$5,$6)",
             &[
                 &pk,
                 &user_message.get_public_key(),
+                &user_message.get_cipher(),
                 &status,
                 &message_id,
                 &time,

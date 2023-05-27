@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { DocumentSchema, StoredMessage } from "./ChatHome"
 import { encrypt, decrypt, PrivateKey } from 'eciesjs'
-import connectToDB from '@/lib/db';
+import connectToDB, { getDb } from '@/lib/db';
 import { useDoc } from "use-pouchdb";
 type Chat = {
     publicKey: string,
@@ -31,12 +31,30 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
     const [inputMessage, setInputMessage] = useState<string>("")
     const { doc, loading, state, error } = useDoc(publicKey);
 
-    let db = connectToDB();
-    console.log(doc)
-    let d = db.find({ selector: { _id: publicKey }, fields: [``]}).then(e=>console.log(e))
+    if (state == "done") {
+   
+        let messages: StoredMessage[] = doc?.message as StoredMessage[]
+
+        let msgToUpdated = messages.filter(msg => {
+            if (msg.rec == true && msg.status == "delivered") {
+
+                return msg
+            }
+        }).map(msg => {
+            return {
+                uid: msg.uid,
+                pub_key: doc?._id
+            }
+        })
+
+    }
+
+
+
+    let db = getDb();
+
+    // let d = db.find({ selector: { _id: publicKey }, fields: [``] }).then(e => console.log(e))
     //console.log(d)
-
-
 
     let chat = doc as Doc | null;
 
@@ -49,11 +67,11 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
         }
         else {
             let messageInBuffer = Buffer.from(inputMessage);
-            console.log(messageInBuffer)
+          
             let encryptedData = encrypt(publicKey, messageInBuffer);
-            console.log(encryptedData)
+       
             var id = "id" + Math.random().toString(16).slice(2)
-            console.log(id)
+     
             let db = connectToDB();
 
             let message: ClientMessage = {
@@ -63,14 +81,14 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
                 public_key: publicKey
             }
 
-            db.get(publicKey).then((e) => {
+            db.get(publicKey).then((e:any) => {
 
                 let messageInDb = e.message as StoredMessage[]
 
-                messageInDb.push({ cipher: inputMessage, rec: false, status: "wait" });
+                messageInDb.push({ cipher: inputMessage, rec: false, status: "wait", uid: id });
 
                 return db.put({
-                    _id: publicKey,
+                    _id: e._id,
                     _rev: e._rev,
                     message: messageInDb,
                     name: e.name,
@@ -83,15 +101,13 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
 
                 sendMessageWebSocket(JSON.stringify(message))
 
-
-
                 db.allDocs({ include_docs: true }).then(e => {
                     let docs = e.rows;
                     let allDocs: DocumentSchema[] = docs.map((doc) => {
                         return {
                             id: doc.id,
-                            messages: doc.doc.message.at(-1),
-                            name: doc.doc.name
+                            messages: doc.doc?.message.at(-1),
+                            name: doc.doc!.name
                         }
                     })
 
@@ -106,7 +122,7 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
                     console.log(e)
                     db.put({
                         _id: publicKey,
-                        message: [{ cipher: inputMessage, rec: false, status: "wait" }],
+                        message: [{ cipher: inputMessage, rec: false, status: "wait", uid: id }],
                         name: name
                     }).then(e => {
                         sendMessageWebSocket(JSON.stringify(message))
@@ -154,7 +170,7 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
                 chat?.message.map((chat: StoredMessage, index) => {
                     return (
                         <div className="m-2 " key={index}>
-                            {chat.rec ? <div className="text-left rounded bg-blue-700 inline-block px-5 py-2">{chat.cipher}</div> : <div className="text-right"><div className="text-right bg-blue-950 inline-block px-5 py-2">{chat.cipher}</div></div>}
+                            {chat.rec ? <div className="text-left rounded bg-blue-700 inline-block px-5 py-2">{chat.cipher}</div> : <div className="text-right"><div className="text-right bg-blue-950 inline-block px-5 py-2">{chat.cipher}<span> {chat.status}</span></div></div>}
                         </div>
                     )
                 })

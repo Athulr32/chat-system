@@ -3,18 +3,18 @@ import Image from "next/image"
 import type { DocumentSchema } from "./ChatHome"
 import profile from "../public/profile.jpeg";
 import { useAllDocs } from "use-pouchdb";
-import connectToDB from "@/lib/db";
+import connectToDB, { getDb } from "@/lib/db";
 
 export default function ChatList({ setContactSelect, setSingleChat }: {setContactSelect: Function, setSingleChat: Function }) {
 
     let { state, rows } = useAllDocs({ include_docs: true, attachments: true });
-    let db = connectToDB();
+    let db = getDb();
 
     let chats: DocumentSchema[];
 
     if (state === "done") {
 
-        chats = rows.map((row) => {
+        chats = rows.map((row:any) => {
 
             let data: DocumentSchema = {
                 id: row.doc?._id,
@@ -28,7 +28,7 @@ export default function ChatList({ setContactSelect, setSingleChat }: {setContac
 
         })
 
-
+        console.log(chats)
     }
 
     return (
@@ -49,7 +49,7 @@ export default function ChatList({ setContactSelect, setSingleChat }: {setContac
                 <div>
                     {state==="done" && chats!.map((chat, index) => {
 
-                        console.log(chat)
+                  
                         return (
 
                             <div key={index} onClick={() => {

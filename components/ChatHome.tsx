@@ -22,13 +22,13 @@ type Auth = {
     message: String,
 }
 
-type UserMessage = {
+export type ServerMessage = {
     uid: string,
     message_type: string,
     cipher: string,
     public_key: string,
     message_id: string,
-    name: string
+    name?: string
 }
 
 
@@ -37,6 +37,7 @@ type MessageStatus = {
     uid: String,
     status: String,
     message_sent: String,
+    key: string,
 }
 
 type SendMessage = {
@@ -51,6 +52,7 @@ export type StoredMessage = {
     cipher: string,
     rec?: boolean,
     status?: string
+    uid: string | null,
 }
 
 export type DocumentSchema = {
@@ -60,8 +62,26 @@ export type DocumentSchema = {
     _rev?: string
 }
 
+import useSWR from 'swr';
+
+const fetcher = (...args) => fetch(...args, {
+    headers: {
+        'AUTHENTICATION': getCookie("token")
+    }
+}).then((res) => {
+
+
+    return res.json()
+}).then(e => {
+
+    
+
+});
+
 
 function ChatHome() {
+
+
 
     let db = useMemo(() => { return connectToDB() }, []);
 
@@ -112,7 +132,7 @@ function ChatHome() {
 
 
 
-    async function insertIntoDb(messages: UserMessage) {
+    async function insertIntoDb(messages: ServerMessage) {
         let getKey = getCookie("privKey") as string;
         let decrypt_message: Buffer;
 
@@ -127,9 +147,7 @@ function ChatHome() {
         db.get(messages.public_key, {}).then((e: any) => {
 
             let messageInDb = e.message as StoredMessage[]
-
-
-            messageInDb.push({ cipher: decrypt_message.toString(), rec: true, status: "received" });
+            messageInDb.push({ cipher: decrypt_message.toString(), rec: true, status: "delivered", uid: messages.uid });
 
             return db.put({
                 _id: messages.public_key,
@@ -143,7 +161,7 @@ function ChatHome() {
                 console.log(e)
                 db.put({
                     _id: messages.public_key,
-                    message: [{ cipher: decrypt_message.toString(), rec: true, status: "received" }],
+                    message: [{ cipher: decrypt_message.toString(), rec: true, status: "delivered", uid: messages.uid }],
                     name: messages.name
                 })
                     .catch(e => {
@@ -164,7 +182,7 @@ function ChatHome() {
         if (lastJsonMessage !== null && connectionStatus == "Open") {
 
             let data: check = JSON.parse(lastMessage?.data);
-            console.log(data)
+ 
             if (data.message_type == "authentication") {
                 let authDetails: Auth = JSON.parse(lastMessage?.data);
                 if (authDetails.status == "true") {
@@ -175,8 +193,8 @@ function ChatHome() {
                 }
             }
             else if (data.message_type == "private_message") {
-                console.log("Message")
-                let messages: UserMessage = JSON.parse(lastMessage?.data);
+         
+                let messages: ServerMessage = JSON.parse(lastMessage?.data);
 
                 insertIntoDb(messages)
 
@@ -185,9 +203,59 @@ function ChatHome() {
             else if (data.message_type == "status") {
                 let messages: MessageStatus = JSON.parse(lastMessage?.data);
 
-                if (messages.status == "user_online" && messages.message_sent == "true") {
+                if (messages.status == "delivered" && messages.message_sent == "true") {
+                    let message_uid = messages.uid;
+                    db.get(messages.key).then(e => {
+
+                        let messageInDb = e.message as StoredMessage[]
+
+                        for (let i = 0; i < messageInDb.length; i++) {
+                            if (messageInDb[i].uid == message_uid) {
+
+                                messageInDb[i].status = "delivered";
+
+                                break
+                            }
+                        }
+
+                        return db.put({
+                            _id: e._id,
+                            _rev: e._rev,
+                            message: messageInDb,
+                            name: e.name
+                        }, { force: true, })
+
+
+                    })
+
 
                     //Send the wait to sent in database for this UID
+                }
+                else if (messages.status == "sent" && messages.message_sent == "true") {
+                    let message_uid = messages.uid;
+                    db.get(messages.key).then(e => {
+
+                        let messageInDb = e.message as StoredMessage[]
+
+                        for (let i = 0; i < messageInDb.length; i++) {
+                            if (messageInDb[i].uid == message_uid) {
+
+                                messageInDb[i].status = "sent";
+
+                                break
+                            }
+                        }
+
+                      
+                        return db.put({
+                            _id: e._id,
+                            _rev: e._rev,
+                            message: messageInDb,
+                            name: e.name
+                        }, { force: true, })
+
+
+                    })
                 }
             }
         }
@@ -224,7 +292,10 @@ function ChatHome() {
 
     return (
         <div>
-
+           <div onClick={(e)=>{
+            db.destroy();
+            
+           }}>Logut</div>
             {!selected && <HomePage setSingleChat={setSingleChat} setContactSelect={setContactSelect} ></HomePage>}
 
             {selected && !contactSelect && <SingleChat setSelected={selectHandler} name={receiverDetails.name} publicKey={receiverDetails.pubKey} sendMessageWebSocket={sendMessageWebSocket}></SingleChat>}

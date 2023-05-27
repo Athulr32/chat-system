@@ -1,13 +1,30 @@
 use serde::{Deserialize, Serialize};
 //User message
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
-
 pub struct ClientMessage {
     uid: String,
     pub message_type: String,
     cipher: String,
     public_key: String,
 }
+
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct MessageStatus {
+    message_type: String,
+    key:String,
+    uid: String,
+    status: String,
+    message_sent: String,
+}
+
+
+#[derive(Deserialize, Serialize)]
+pub struct SocketAuth {
+    token: String,
+}
+
+
 
 impl ClientMessage {
     pub fn get_public_key(&self) -> String {
@@ -32,7 +49,7 @@ pub struct RecieverMessage {
     public_key: String,
     message_id: String,
     name: String,
-    time:u64
+    time:String
 }
 
 impl RecieverMessage {
@@ -43,7 +60,7 @@ impl RecieverMessage {
         public_key: String,
         message_id: String,
         name: String,
-        time:u64
+        time:String
     ) -> Self {
         RecieverMessage {
             uid,
@@ -57,14 +74,6 @@ impl RecieverMessage {
     }
 }
 
-#[derive(Deserialize, Debug, Serialize)]
-pub struct MessageStatus {
-    message_type: String,
-    key:String,
-    uid: String,
-    status: String,
-    message_sent: String,
-}
 
 impl MessageStatus {
     pub fn build(message_type: String,key:String, uid: String, status: String, message_sent: String) -> Self {
@@ -78,10 +87,6 @@ impl MessageStatus {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct SocketAuth {
-    token: String,
-}
 
 impl SocketAuth {
     pub fn get_token(&self) -> String {

@@ -3,7 +3,7 @@ use axum::{
     Extension, Router,
 };
 use dotenvy::dotenv;
-use encryptedapp::login::login;
+use encryptedapp::{login::login, updateStatus::update_status_of_message};
 use encryptedapp::register::register;
 use encryptedapp::user_search::user_search;
 use encryptedapp::websocket::ws_handler;
@@ -13,6 +13,9 @@ use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 use tokio_postgres::NoTls;
 use tower_http::cors::{Any, CorsLayer};
+
+use encryptedapp::get_message::get_message;
+
 //-> shuttle_axum::ShuttleAxum 
 #[tokio::main]
 async fn main() {
@@ -71,9 +74,10 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/login", post(login))
-        // .route("/getMessage", get(get_message))
+        .route("/getMessage", get(get_message))
         .route("/register", post(register))
         .route("/userSearch", post(user_search))
+        .route("/updateStatus", post(update_status_of_message))
         .layer(Extension(state))
         .layer(cors)
         .with_state(new_client.clone());
