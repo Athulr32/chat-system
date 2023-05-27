@@ -33,7 +33,7 @@ export type NoMessage = {
 async function getMsg(tok: any, db: PouchDB.Database) {
 
 
-    const req = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}getMessage`, {
+    const req = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/getMessage`, {
         headers: {
             "AUTHENTICATION": tok as string
         }
