@@ -4,7 +4,7 @@ import bgimage from "../encrypt.jpg"
 import SignIn from "./SignIn"
 export default function Register(props: any) {
 
-    function changeHandler(e) {
+    function changeHandler(e:any) {
 
         props.flag(e.target.value)
 

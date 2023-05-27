@@ -3,10 +3,10 @@ use axum::{
     Extension, Router,
 };
 use dotenvy::dotenv;
-use encryptedapp::{login::login, updateStatus::update_status_of_message};
 use encryptedapp::register::register;
 use encryptedapp::user_search::user_search;
 use encryptedapp::websocket::ws_handler;
+use encryptedapp::{login::login, updateStatus::update_status_of_message};
 use futures_util::lock::Mutex;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
@@ -16,9 +16,11 @@ use tower_http::cors::{Any, CorsLayer};
 
 use encryptedapp::get_message::get_message;
 
-//-> shuttle_axum::ShuttleAxum 
-#[tokio::main]
-async fn main() {
+//-> shuttle_axum::ShuttleAxum
+#[shuttle_runtime::main]
+pub async fn axum(
+    #[shuttle_secrets::Secrets] secrets: shuttle_secrets::SecretStore,
+) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
     // let postgres_env = std::env::var("DATABASE_URL").expect("DATABASE URL NOT SET");
     let cors = CorsLayer::new()
@@ -30,7 +32,7 @@ async fn main() {
         Arc::new(Mutex::new(HashMap::new()));
 
     let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=postgres",
+        "postgres://swpgvslj:a3SjjSC6xL_kAHPTizMFwc16r17joewT@mouse.db.elephantsql.com/swpgvslj",
         NoTls,
     )
     .await
@@ -82,9 +84,9 @@ async fn main() {
         .layer(cors)
         .with_state(new_client.clone());
 
-    axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-    // Ok(app.into())
+    // axum::Server::bind(&"127.0.0.1:3011".parse().unwrap())
+    //     .serve(app.into_make_service())
+    //     .await
+    //     .unwrap();
+    Ok(app.into())
 }

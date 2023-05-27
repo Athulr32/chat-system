@@ -29,11 +29,11 @@ type Doc = {
 export default function SingleChat({ publicKey, name, sendMessageWebSocket, setSelected }: Chat) {
 
     const [inputMessage, setInputMessage] = useState<string>("")
-    const { doc, loading, state, error } = useDoc(publicKey);
+    let { doc, loading, state, error } = useDoc(publicKey);
 
     if (state == "done") {
-   
-        let messages: StoredMessage[] = doc?.message as StoredMessage[]
+        let docs: any = doc;
+        let messages: StoredMessage[] = docs.message as StoredMessage[]
 
         let msgToUpdated = messages.filter(msg => {
             if (msg.rec == true && msg.status == "delivered") {
@@ -59,7 +59,7 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
     let chat = doc as Doc | null;
 
 
-    async function sendSocketMessage(e) {
+    async function sendSocketMessage(e:any) {
 
         e.preventDefault();
         if (!inputMessage) {
@@ -67,11 +67,11 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
         }
         else {
             let messageInBuffer = Buffer.from(inputMessage);
-          
+
             let encryptedData = encrypt(publicKey, messageInBuffer);
-       
+
             var id = "id" + Math.random().toString(16).slice(2)
-     
+
             let db = connectToDB();
 
             let message: ClientMessage = {
@@ -81,7 +81,7 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
                 public_key: publicKey
             }
 
-            db.get(publicKey).then((e:any) => {
+            db.get(publicKey).then((e: any) => {
 
                 let messageInDb = e.message as StoredMessage[]
 
@@ -102,8 +102,8 @@ export default function SingleChat({ publicKey, name, sendMessageWebSocket, setS
                 sendMessageWebSocket(JSON.stringify(message))
 
                 db.allDocs({ include_docs: true }).then(e => {
-                    let docs = e.rows;
-                    let allDocs: DocumentSchema[] = docs.map((doc) => {
+                    let docs = e.rows as any;
+                    let allDocs: DocumentSchema[] = docs.map((doc:any) => {
                         return {
                             id: doc.id,
                             messages: doc.doc?.message.at(-1),

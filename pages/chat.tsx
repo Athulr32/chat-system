@@ -33,7 +33,7 @@ export type NoMessage = {
 async function getMsg(tok: any, db: PouchDB.Database) {
 
 
-    const req = await fetch("http://localhost:3011/getMessage", {
+    const req = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}getMessage`, {
         headers: {
             "AUTHENTICATION": tok as string
         }
@@ -65,14 +65,9 @@ async function getMsg(tok: any, db: PouchDB.Database) {
             }
 
             messageInDb.push({ cipher: decrypt_message.toString(), rec: true, status: "delivered", uid: message.message_id });
-            var updateDb = await db.put({
-                _id: openDb._id,
-                _rev: openDb._rev,
-                name: openDb.name,
-                message: messageInDb
-            });
 
-            let notifyServer = await fetch("http://localhost:3011/updateStatus", {
+
+            let notifyServer = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/updateStatus`, {
                 method: "POST",
                 headers: {
                     "AUTHENTICATION": tok as string,
@@ -82,14 +77,20 @@ async function getMsg(tok: any, db: PouchDB.Database) {
                     message_id: message.message_id,
                     public_key: message.public_key
                 })
-            })  
+            })
+            console.log(await notifyServer.text())
+            if (notifyServer.status === 401 || notifyServer.status === 502) {
 
-            if(notifyServer.status === 401 || notifyServer.status === 502){
-
-                break;
+                continue;
             }
 
-            console.log(await notifyServer.text())
+            var updateDb = await db.put({
+                _id: openDb._id,
+                _rev: openDb._rev,
+                name: openDb.name,
+                message: messageInDb
+            });
+
         }
         catch (e) {
             console.log(e)

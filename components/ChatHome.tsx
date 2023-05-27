@@ -62,21 +62,6 @@ export type DocumentSchema = {
     _rev?: string
 }
 
-import useSWR from 'swr';
-
-const fetcher = (...args) => fetch(...args, {
-    headers: {
-        'AUTHENTICATION': getCookie("token")
-    }
-}).then((res) => {
-
-
-    return res.json()
-}).then(e => {
-
-    
-
-});
 
 
 function ChatHome() {
@@ -109,7 +94,7 @@ function ChatHome() {
         readyState,
         getWebSocket,
 
-    } = useWebSocket(`ws://localhost:3011/ws`, {
+    } = useWebSocket(`${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/ws`, {
         onOpen: (e) => {
             sendMessage(`{"token":"${token}"}`);
             console.log("Connected")
@@ -205,7 +190,7 @@ function ChatHome() {
 
                 if (messages.status == "delivered" && messages.message_sent == "true") {
                     let message_uid = messages.uid;
-                    db.get(messages.key).then(e => {
+                    db.get(messages.key).then((e:any) => {
 
                         let messageInDb = e.message as StoredMessage[]
 
@@ -233,7 +218,7 @@ function ChatHome() {
                 }
                 else if (messages.status == "sent" && messages.message_sent == "true") {
                     let message_uid = messages.uid;
-                    db.get(messages.key).then(e => {
+                    db.get(messages.key).then((e:any) => {
 
                         let messageInDb = e.message as StoredMessage[]
 
