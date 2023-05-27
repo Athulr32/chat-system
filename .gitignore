@@ -37,3 +37,5 @@ next-env.d.ts
 #chat-server
 /server/target
 /server/.env
+/server/Secrets.toml
+/server/Secrets.dev.toml
