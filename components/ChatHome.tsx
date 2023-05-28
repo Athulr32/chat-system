@@ -65,7 +65,7 @@ export type DocumentSchema = {
 
 
 export type OfflineMessages = {
-    z
+    
     message_type: string,
     status: boolean,
     messages: Message[]
