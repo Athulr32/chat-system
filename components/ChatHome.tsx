@@ -1,7 +1,7 @@
 
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import useWebSocket, { ReadyState } from "react-use-websocket"
 import { getCookie } from 'cookies-next';
 import SelectContact from '@/components/SelectContact';
 import SingleChat from '@/components/SingleChat';
