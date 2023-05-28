@@ -8,6 +8,7 @@ use axum::{
 };
 use futures_util::{lock::Mutex, SinkExt, StreamExt};
 
+use serde_json::json;
 use tokio_postgres::{Client, Error};
 
 use std::{
@@ -20,7 +21,7 @@ use tokio::sync::{broadcast, RwLock};
 use hmac::{Hmac, Mac};
 use jwt::VerifyWithKey;
 
-use crate::types::{ClientMessage, MessageStatus, RecieverMessage, SocketAuth};
+use crate::types::{ClientMessage, GetMessage, MessageStatus, RecieverMessage, SocketAuth};
 use sha2::Sha256;
 use std::collections::BTreeMap;
 
@@ -102,23 +103,41 @@ async fn handle_socket(
                                 }
 
                                 let mut muttex = state.lock().await;
-                                muttex.insert(pk.to_string(), tx.clone());
+                                //Check if user is already logged in
+                                //If yes discard the socket
 
-                                auth = true;
-                                //Check if the user didn't recieve any previous message
-                                //If not give info in the JSOn
-                                // will be done at last
-                                tx.send(
-                                    r#"{
-                                        "message_type":"authentication",
-                                        "status":"true",
-                                        "message":"user authenticated"
-                                }"#
-                                    .to_string(),
-                                )
-                                .unwrap();
+                                let user_connection_exist = muttex.get(&pk);
 
-                                continue;
+                                if user_connection_exist.is_none() {
+                                    muttex.insert(pk.to_string(), tx.clone());
+
+                                    println!("{:?}", muttex);
+                                    auth = true;
+                                    //Check if the user didn't recieve any previous message
+                                    //If not give info in the JSOn
+                                    // will be done at last
+                                    tx.send(
+                                        r#"{
+                                            "message_type":"authentication",
+                                            "status":"true",
+                                            "message":"user authenticated"
+                                    }"#
+                                        .to_string(),
+                                    )
+                                    .unwrap();
+                                } else {
+                                    tx.send(
+                                        r#"{
+                                            "message_type":"authentication",
+                                            "status":"false",
+                                            "message":"user already logged in"
+                                    }"#
+                                        .to_string(),
+                                    )
+                                    .unwrap();
+
+                                    continue;
+                                }
                             } else {
                                 tx.send(
                                     r#"{
@@ -231,7 +250,7 @@ async fn handle_socket(
                                     pk.clone(),
                                     "fd".to_string(),
                                     name.to_string(),
-                                    current_time.to_string()
+                                    current_time.to_string(),
                                 );
 
                                 if let Some(tr) = tr {
@@ -257,7 +276,6 @@ async fn handle_socket(
 
                                         let _ = tx.send(
                                             serde_json::to_string(&MessageStatus::build(
-                                                
                                                 "status".to_string(),
                                                 rec_pubkey,
                                                 uid,
@@ -271,7 +289,6 @@ async fn handle_socket(
 
                                         tx.send(
                                             serde_json::to_string(&MessageStatus::build(
-
                                                 "status".to_string(),
                                                 rec_pubkey,
                                                 uid.clone(),
@@ -281,7 +298,6 @@ async fn handle_socket(
                                             .unwrap(),
                                         )
                                         .unwrap();
-
 
                                         let _insert_msg = add_message_to_database(
                                             &client,
@@ -305,8 +321,9 @@ async fn handle_socket(
                                         &"sent",
                                         &current_time.to_string(),
                                     )
-                                    .await.unwrap();
-                                    println!("{:?}",_insert_msg);
+                                    .await
+                                    .unwrap();
+                                    println!("{:?}", _insert_msg);
                                     tx.send(
                                         serde_json::to_string(&MessageStatus::build(
                                             "status".to_string(),
@@ -315,6 +332,67 @@ async fn handle_socket(
                                             "sent".to_string(),
                                             "true".to_string(),
                                         ))
+                                        .unwrap(),
+                                    )
+                                    .unwrap();
+                                }
+                            }
+                            "get_message" => {
+                                println!("Got");
+                                let unlock_db = client.read().await;
+                                let get_all_user_messages = unlock_db
+                                    .query(
+                                        "SELECT * from messages where messageTo=$1 AND status=$2 ",
+                                        &[&pk, &"sent"],
+                                    )
+                                    .await;
+
+                                if get_all_user_messages.is_err() {
+                                    tx.send(
+                                        serde_json::to_string(
+                                            r#"{"status":false,"message":"db error"}"#,
+                                        )
+                                        .unwrap(),
+                                    )
+                                    .unwrap();
+                                } else {
+                                    let messages = get_all_user_messages.unwrap();
+
+                                    if messages.is_empty() {
+                                        tx.send(json!({"message_type":"offline_messages","message":"No data","status":false}).to_string())
+                                            .unwrap();
+                                        continue;
+                                    }
+
+                                    let mut all_messages = Vec::new();
+
+                                    for message in messages {
+                                        let message_from: &str = message.get(0);
+                                        let message_to: &str = message.get(1);
+                                        let message_cipher: &str = message.get(2);
+                                        let status: &str = message.get(3);
+                                        let message_id: &str = message.get(4);
+                                        let time: &str = message.get(5);
+
+                                        let build_message = RecieverMessage::build(
+                                            "f0".to_string(),
+                                            "offline_messages".to_string(),
+                                            message_cipher.to_string(),
+                                            message_from.to_string(),
+                                            message_id.to_string(),
+                                            "wfwds".to_string(),
+                                            time.to_string(),
+                                        );
+
+                                        all_messages.push(build_message);
+                                    }
+
+                                    tx.send(
+                                        serde_json::to_string(&GetMessage {
+                                            message_type: "offline_messages".to_string(),
+                                            messages: all_messages,
+                                            status: true,
+                                        })
                                         .unwrap(),
                                     )
                                     .unwrap();
@@ -357,7 +435,7 @@ pub async fn add_message_to_database(
 ) -> Result<u64, Error> {
     let unlock_client = client.read().await;
 
-    println!("{:?}",status);
+    println!("{:?}", status);
     unlock_client
         .execute(
             "INSERT INTO MESSAGES VALUES($1,$2,$3,$4,$5,$6)",

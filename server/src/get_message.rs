@@ -43,10 +43,10 @@ pub async fn get_message(
 
                     let unlock_client = client.read().await;
 
-                    let get_all_client_messages = unlock_client
+                    let get_all_client_messages: Result<Vec<tokio_postgres::Row>, tokio_postgres::Error> = unlock_client
                         .query("SELECT * from messages where messageTo=$1 AND status=$2 ", &[&client_key,&"sent"])
                         .await;
-
+                    println!("{:?}",get_all_client_messages);
                     if get_all_client_messages.is_err() {
                         return Err(Error::DbError);
                     } else {

@@ -171,7 +171,7 @@ export default function Chat() {
         }
         console.log("Hi")
 
-        getMsg(tok, db)
+        // getMsg(tok, db)
     }, [])
 
 

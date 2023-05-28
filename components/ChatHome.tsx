@@ -11,6 +11,7 @@ import { decrypt } from 'eciesjs';
 import { useRouter } from 'next/router';
 import { useAllDocs, useFind } from 'use-pouchdb';
 import useEventListener from '@/hooks/useEventListener';
+import { Message } from '@/pages/chat';
 
 interface check {
     message_type: String
@@ -63,14 +64,17 @@ export type DocumentSchema = {
 }
 
 
-
+export type OfflineMessages = {
+    z
+    message_type: string,
+    status: boolean,
+    messages: Message[]
+}
 function ChatHome() {
 
 
-
+    const [test, setTest] = useState(false)
     let db = useMemo(() => { return connectToDB() }, []);
-
-    let d = useEventListener(db)
 
     const [receiverDetails, setReceiverDetails] = useState({
         name: "",
@@ -98,6 +102,7 @@ function ChatHome() {
         onOpen: (e) => {
             sendMessage(`{"token":"${token}"}`);
             console.log("Connected")
+
         },
         //Will attempt to reconnect on all close events, such as server shutting down
         shouldReconnect: (closeEvent) => true,
@@ -106,6 +111,7 @@ function ChatHome() {
         reconnectAttempts: 10,
     });
 
+    console.log(readyState)
 
     const connectionStatus = {
         [ReadyState.CONNECTING]: 'Connecting',
@@ -167,18 +173,21 @@ function ChatHome() {
         if (lastJsonMessage !== null && connectionStatus == "Open") {
 
             let data: check = JSON.parse(lastMessage?.data);
- 
+            console.log(data)
             if (data.message_type == "authentication") {
+
                 let authDetails: Auth = JSON.parse(lastMessage?.data);
                 if (authDetails.status == "true") {
+                    console.log("Hey")
                     setAuth(true)
+                    sendMessage(`{"message_type":"get_message"}`)
                 }
                 else {
                     router.push("/")
                 }
             }
             else if (data.message_type == "private_message") {
-         
+
                 let messages: ServerMessage = JSON.parse(lastMessage?.data);
 
                 insertIntoDb(messages)
@@ -190,7 +199,7 @@ function ChatHome() {
 
                 if (messages.status == "delivered" && messages.message_sent == "true") {
                     let message_uid = messages.uid;
-                    db.get(messages.key).then((e:any) => {
+                    db.get(messages.key).then((e: any) => {
 
                         let messageInDb = e.message as StoredMessage[]
 
@@ -214,11 +223,11 @@ function ChatHome() {
                     })
 
 
-                    //Send the wait to sent in database for this UID
+                    //Set the wait to sent in database for this UID
                 }
                 else if (messages.status == "sent" && messages.message_sent == "true") {
                     let message_uid = messages.uid;
-                    db.get(messages.key).then((e:any) => {
+                    db.get(messages.key).then((e: any) => {
 
                         let messageInDb = e.message as StoredMessage[]
 
@@ -231,7 +240,7 @@ function ChatHome() {
                             }
                         }
 
-                      
+
                         return db.put({
                             _id: e._id,
                             _rev: e._rev,
@@ -242,6 +251,82 @@ function ChatHome() {
 
                     })
                 }
+            }
+            else if (data.message_type == "offline_messages") {
+
+                let { messages, status }: OfflineMessages = JSON.parse(lastMessage?.data)
+
+                if (status) {
+
+                    //insert into db;
+
+                    (async () => {
+
+                        //THe messages can be of different users
+                        for (const message of messages as Message[]) {
+
+                            try {
+                                let openDb: any = await db.get(message.public_key)
+                                let messageInDb = openDb.message as StoredMessage[];
+                                console.log(openDb)
+
+                                let getKey = getCookie("privKey") as string;
+                                let decrypt_message: Buffer;
+
+                                try {
+
+                                    decrypt_message = decrypt(getKey, Buffer.from(message.cipher, "base64"))
+                                }
+                                catch (e) {
+                                    decrypt_message = Buffer.from(message.cipher);
+                                }
+
+                                messageInDb.push({ cipher: decrypt_message.toString(), rec: true, status: "delivered", uid: message.message_id });
+
+
+                                let notifyServer = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/updateStatus`, {
+                                    method: "POST",
+                                    headers: {
+                                        "AUTHENTICATION": token as string,
+                                        "Content-Type": "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        message_id: message.message_id,
+                                        public_key: message.public_key
+                                    })
+                                })
+                                console.log(await notifyServer.text())
+                                if (notifyServer.status === 401 || notifyServer.status === 502) {
+
+                                    continue;
+                                }
+
+                                var updateDb = await db.put({
+                                    _id: openDb._id,
+                                    _rev: openDb._rev,
+                                    name: openDb.name,
+                                    message: messageInDb
+                                });
+
+                            }
+                            catch (e) {
+                                console.log(e)
+                                console.log("Failed to insert messages which is not seen by user")
+                            }
+                        }
+
+                        setTest(true)
+
+
+
+                    })()
+
+                }
+                else {
+                    setTest(true)
+                }
+
+                //Update the status of those messages
             }
         }
     }, [lastJsonMessage, connectionStatus]);
@@ -277,11 +362,11 @@ function ChatHome() {
 
     return (
         <div>
-           <div onClick={(e)=>{
-            db.destroy();
-            
-           }}>Logut</div>
-            {!selected && <HomePage setSingleChat={setSingleChat} setContactSelect={setContactSelect} ></HomePage>}
+            <div onClick={(e) => {
+                db.destroy();
+
+            }}>Logut</div>
+            {!selected && test && <HomePage setSingleChat={setSingleChat} setContactSelect={setContactSelect} ></HomePage>}
 
             {selected && !contactSelect && <SingleChat setSelected={selectHandler} name={receiverDetails.name} publicKey={receiverDetails.pubKey} sendMessageWebSocket={sendMessageWebSocket}></SingleChat>}
 

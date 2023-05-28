@@ -8,23 +8,26 @@ pub struct ClientMessage {
     public_key: String,
 }
 
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct MessageStatus {
     message_type: String,
-    key:String,
+    key: String,
     uid: String,
     status: String,
     message_sent: String,
 }
-
 
 #[derive(Deserialize, Serialize)]
 pub struct SocketAuth {
     token: String,
 }
 
-
+#[derive(Deserialize, Serialize)]
+pub struct GetMessage {
+    pub message_type: String,
+    pub messages: Vec<RecieverMessage>,
+    pub status: bool,
+}
 
 impl ClientMessage {
     pub fn get_public_key(&self) -> String {
@@ -40,7 +43,6 @@ impl ClientMessage {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct RecieverMessage {
     uid: String,
@@ -49,7 +51,7 @@ pub struct RecieverMessage {
     public_key: String,
     message_id: String,
     name: String,
-    time:String
+    time: String,
 }
 
 impl RecieverMessage {
@@ -60,7 +62,7 @@ impl RecieverMessage {
         public_key: String,
         message_id: String,
         name: String,
-        time:String
+        time: String,
     ) -> Self {
         RecieverMessage {
             uid,
@@ -69,14 +71,19 @@ impl RecieverMessage {
             public_key,
             message_id,
             name,
-            time
+            time,
         }
     }
 }
 
-
 impl MessageStatus {
-    pub fn build(message_type: String,key:String, uid: String, status: String, message_sent: String) -> Self {
+    pub fn build(
+        message_type: String,
+        key: String,
+        uid: String,
+        status: String,
+        message_sent: String,
+    ) -> Self {
         MessageStatus {
             key,
             message_type,
@@ -86,7 +93,6 @@ impl MessageStatus {
         }
     }
 }
-
 
 impl SocketAuth {
     pub fn get_token(&self) -> String {

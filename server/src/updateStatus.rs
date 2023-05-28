@@ -67,7 +67,7 @@ pub async fn update_status_of_message(
                     let update = db_client
                         .execute(
                             "UPDATE MESSAGES SET status=$1 WHERE messageFrom=$2 AND messageTo=$3 AND messageid=$4",
-                            &[&"seen",&data.public_key, &client_key ,&data.message_id],
+                            &[&"delivered",&data.public_key, &client_key ,&data.message_id],
                         )
                         .await;
 
