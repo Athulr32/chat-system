@@ -32,7 +32,7 @@ pub async fn axum(
         Arc::new(Mutex::new(HashMap::new()));
 
     let (client, connection) = tokio_postgres::connect(
-        "",
+        "postgres://swpgvslj:a3SjjSC6xL_kAHPTizMFwc16r17joewT@mouse.db.elephantsql.com/swpgvslj",
         NoTls,
     )
     .await
